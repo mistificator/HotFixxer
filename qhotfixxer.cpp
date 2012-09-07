@@ -9,6 +9,7 @@
 #include <QFileInfoList>
 #include <QDir>
 #include <QDebug>
+#include <QDateTime>
 
 struct QHotFixxer::Data
 {
@@ -76,11 +77,10 @@ struct QHotFixxer::Data
     }
     void nextDir(const QString & _dir, bool _scan = false)
     {
-        qDebug() << " scanning" << _dir.toLower();
-        QFileInfoList _files = QDir(_dir).entryInfoList(QStringList() << "*.*");
-        foreach (const QFileInfo & _fn, _files)
+        QFileInfoList _files = QDir(_dir).entryInfoList(QStringList() << "*.*", QDir::Files);
+        if (!_scan)
         {
-            if (!_scan)
+            foreach (const QFileInfo & _fn, _files)
             {
                 const QString & _file_path = _fn.absoluteFilePath();
                 const QString & _file_name = _fn.fileName().toLower();
@@ -92,14 +92,30 @@ struct QHotFixxer::Data
                         const bool _known = dst_hashes.contains(_md5);
                         if (_known)
                         {
-                            QFile::remove(_file_path);
-                            QFile::copy(_src_file, _file_path);
-                            qDebug() << "  known" << _file_name << _md5 << ", hot fixxed";
+                            if (QFile::exists(_src_file))
+                            {
+                                QFile::remove(_file_path);
+                                QFile::copy(_src_file, _file_path);
+                                qDebug() << " known" << _file_path;
+                                qDebug() << "  hash\t\t" << _md5;
+                                qDebug() << "  hotfixxed";
+                            }
+                            else
+                            {
+                                qDebug() << " known" << _file_path;
+                                qDebug() << "  hash\t\t" << _md5;
+                                qDebug() << "  source file not found";
+                            }
                         }
                         else
                         {
-                            qDebug() << "  unknown" << _file_name << _md5;
+                            qDebug() << " unknown" << _file_path;
+                            qDebug() << "  hash\t\t" << _md5;
+                            qDebug() << "  created\t" << _fn.created();
+                            qDebug() << "  modified\t" << _fn.lastModified();
+                            qDebug() << "  size\t\t" << _fn.size();
                         }
+                        qDebug();
                         break;
                     }
                 }
@@ -142,7 +158,7 @@ void QHotFixxer::fix()
         }
         return;
     }
-    qDebug() << "start fixxing";
+    qDebug() << "start hotfixxing";
     foreach (const QString & _dir, d->dst_paths)
     {
         d->nextDir(_dir);
